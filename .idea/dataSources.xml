@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="DataSourceManagerImpl" format="xml" multifile-model="true">
+    <data-source source="LOCAL" name="database" uuid="b8991025-ddad-496c-a509-e7c235a3fd01">
+      <driver-ref>mongo.4</driver-ref>
+      <synchronize>true</synchronize>
+      <configured-by-url>true</configured-by-url>
+      <jdbc-driver>com.dbschema.MongoJdbcDriver</jdbc-driver>
+      <jdbc-url>mongodb+srv://thanhnd:thanhnd@gradingbubblesheet.bojho4o.mongodb.net/grading_bbsheet?retryWrites=true&amp;w=majority&amp;tls=true&amp;appName=gradingbubblesheet</jdbc-url>
+      <working-dir>$ProjectFileDir$</working-dir>
+    </data-source>
+  </component>
+</project>
