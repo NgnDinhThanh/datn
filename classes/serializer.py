@@ -16,6 +16,7 @@ class ClassSerializer(serializers.Serializer):
     student_count = serializers.IntegerField(read_only=True)
     teacher_id = ObjectIdField(read_only=True)
     student_ids = serializers.ListField(child=ObjectIdField(), read_only=True)
+    exam_ids = serializers.ListField(child=ObjectIdField(), read_only=True)
 
     def validate_class_code(self, value):
         if not value.isalnum():
@@ -23,12 +24,14 @@ class ClassSerializer(serializers.Serializer):
         return value
 
     def to_representation(self, instance):
-        # Convert MongoDB document to dict without ID
+        # Convert MongoDB document to dict with ID
         data = {
+            'id': str(instance.id),
             'class_code': instance.class_code,
             'class_name': instance.class_name,
             'student_count': instance.student_count,
             'teacher_id': str(instance.teacher_id),  # Convert ObjectId to string
-            'student_ids': [str(id) for id in instance.student_ids]  # Convert ObjectIds to strings
+            'student_ids': [str(id) for id in instance.student_ids],
+            'exam_ids': [str(id) for id in instance.exam_ids]
         }
         return data

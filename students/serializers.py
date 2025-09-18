@@ -14,7 +14,7 @@ class StudentSerializer(serializers.Serializer):
     first_name = serializers.CharField(max_length=200)
     last_name = serializers.CharField(max_length=200)
     teacher_id = ObjectIdField(read_only=True)
-    class_codes = serializers.ListField(child=ObjectIdField(), read_only=True)
+    class_codes = serializers.ListField(child=ObjectIdField(), required=False)
 
     def validate_student_id(self, value):
         if not value.isalnum():
@@ -23,11 +23,11 @@ class StudentSerializer(serializers.Serializer):
 
     def to_representation(self, instance):
         data = {
+            '_id': str(instance.id),
             'student_id': instance.student_id,
             'first_name': instance.first_name,
             'last_name': instance.last_name,
             'teacher_id': str(instance.teacher_id),
             'class_codes': [str(id) for id in instance.class_codes]
         }
-
         return data

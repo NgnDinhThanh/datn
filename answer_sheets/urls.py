@@ -1,8 +1,8 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from answer_sheets.views import AnswerSheetTemplateViewSet
 
-from answer_sheets.views import AnswerSheetTemplateListCreateView, AnswerSheetTemplateDetailView
+router = DefaultRouter()
+router.register(r'', AnswerSheetTemplateViewSet, basename='answer-sheet')
 
-urlpatterns = [
-    path('', AnswerSheetTemplateListCreateView.as_view(), name='answersheet-list-create'),
-    path('<str:id>/', AnswerSheetTemplateDetailView.as_view(), name='answersheet-detail' ),
-]
+urlpatterns = router.urls

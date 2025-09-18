@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -125,6 +126,23 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
+]
+
+# Media files configuration
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# Answer Sheet Configuration
+ANSWER_SHEET_CONFIG = {
+    'ARUCO_MARKER_DIR': os.path.join(BASE_DIR, 'answer_sheets', 'aruco_markers'),
+    'OUTPUT_DIR': os.path.join(MEDIA_ROOT, 'answer_sheets'),
+    'PREVIEW_DIR': os.path.join(MEDIA_ROOT, 'answer_sheets', 'previews'),
+    'MAX_BACKUPS': 5,
+    'MAX_FILE_SIZE_MB': 10,
+    'ALLOWED_EXTENSIONS': ['.pdf', '.json', '.png']
+}
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -189,6 +207,10 @@ LOGGING = {
             'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
             'style': '{',
         },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
     },
     'handlers': {
         'console': {
@@ -197,36 +219,21 @@ LOGGING = {
         },
         'file': {
             'class': 'logging.FileHandler',
-            'filename': 'django_debug.log',
+            'filename': 'debug.log',
             'formatter': 'verbose',
         },
     },
     'loggers': {
         'django': {
             'handlers': ['console', 'file'],
-            'level': 'DEBUG',
+            'level': 'INFO',
             'propagate': True,
         },
-        'classes': {
+        'answer_sheets': {
             'handlers': ['console', 'file'],
             'level': 'DEBUG',
             'propagate': True,
         },
-        'users': {
-            'handlers': ['console'],
-            'level': 'ERROR',
-            'propagate': False,
-        },
-        'mongoengine': {
-            'handlers': ['console'],
-            'level': 'ERROR',
-            'propagate': False,
-        },
-        'rest_framework': {
-            'handlers': ['console'],
-            'level': 'ERROR',
-            'propagate': False,
-        }
     },
 }
 

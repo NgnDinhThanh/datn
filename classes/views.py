@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view
 from classes.models import Class
 from classes.serializer import ClassSerializer
+from exams.models import Exam
 from students.models import Student
 from users.models import User
 import logging
@@ -95,11 +96,13 @@ class ClassListCreateView(APIView):
             class_list = []
             for class_obj in classes:
                 class_list.append({
+                    'id': str(class_obj.id),
                     'class_code': class_obj.class_code,
                     'class_name': class_obj.class_name,
                     'student_count': class_obj.student_count,
                     'teacher_id': str(class_obj.teacher_id),  # Convert ObjectId to string
-                    'student_ids': [str(id) for id in class_obj.student_ids]  # Convert ObjectIds to strings
+                    'student_ids': [str(id) for id in class_obj.student_ids],  # Convert ObjectIds to strings
+                    'exam_ids': [str(id) for id in class_obj.exam_ids]
                 })
 
             return Response(class_list)
@@ -182,7 +185,8 @@ class ClassListCreateView(APIView):
                 'class_name': class_obj.class_name,
                 'student_count': class_obj.student_count,
                 'teacher_id': str(class_obj.teacher_id),
-                'student_ids': [str(id) for id in class_obj.student_ids]
+                'student_ids': [str(id) for id in class_obj.student_ids],
+                'exam_ids': [str(id) for id in class_obj.exam_ids]
             }
             
             if invalid_student_ids:
@@ -229,7 +233,8 @@ class ClassDetailView(APIView):
                 'class_name': class_obj.class_name,
                 'student_count': class_obj.student_count,
                 'teacher_id': str(class_obj.teacher_id),  # Convert ObjectId to string
-                'student_ids': [str(id) for id in class_obj.student_ids]  # Convert ObjectIds to strings
+                'student_ids': [str(id) for id in class_obj.student_ids],  # Convert ObjectIds to strings
+                'exam_ids': [str(id) for id in class_obj.exam_ids]
             })
 
         except Exception as e:
@@ -248,45 +253,64 @@ class ClassDetailView(APIView):
                     status=status.HTTP_403_FORBIDDEN
                 )
 
-            # Lấy danh sách student_ids mới từ request và chuyển đổi thành ObjectId
-            new_student_ids = []
-            invalid_student_ids = []
-            for student_id in request.data.get('student_ids', []):
-                try:
-                    # Thử tìm student bằng ObjectId
+            # Chỉ cập nhật danh sách sinh viên nếu thực sự có trường student_ids trong payload
+            if 'student_ids' in request.data:
+                # Lấy danh sách student_ids mới từ request và chuyển đổi thành ObjectId
+                new_student_ids = []
+                invalid_student_ids = []
+                for student_id in request.data.get('student_ids', []):
                     try:
-                        student = Student.objects.get(id=ObjectId(student_id))
-                        new_student_ids.append(student.id)
+                        # Thử tìm student bằng ObjectId
+                        try:
+                            student = Student.objects.get(id=ObjectId(student_id))
+                            new_student_ids.append(student.id)
+                        except Exception:
+                            # Thử tìm student bằng student_id
+                            student = Student.objects.get(student_id=str(student_id))
+                            new_student_ids.append(student.id)
                     except Exception:
-                        # Thử tìm student bằng student_id
-                        student = Student.objects.get(student_id=str(student_id))
-                        new_student_ids.append(student.id)
-                except Exception:
-                    invalid_student_ids.append(str(student_id))
+                        invalid_student_ids.append(str(student_id))
 
-            old_student_ids = class_obj.student_ids
+                old_student_ids = class_obj.student_ids
 
-            # Chỉ thêm các student mới (chưa có trong old_student_ids)
-            students_to_add = set(new_student_ids) - set(old_student_ids)
-            for student_id in students_to_add:
-                try:
-                    student = Student.objects.get(id=student_id)
-                    if student.teacher_id == request.user.id:  # Kiểm tra student có thuộc về teacher không
-                        if class_obj.id not in student.class_codes:
-                            student.class_codes.append(class_obj.id)
+                # Chỉ thêm các student mới (chưa có trong old_student_ids)
+                students_to_add = set(new_student_ids) - set(old_student_ids)
+                for student_id in students_to_add:
+                    try:
+                        student = Student.objects.get(id=student_id)
+                        if student.teacher_id == request.user.id:  # Kiểm tra student có thuộc về teacher không
+                            if class_obj.id not in student.class_codes:
+                                student.class_codes.append(class_obj.id)
+                                student.save()
+                                logger.info(f"Added class {class_obj.class_code} to student {student.student_id}")
+                    except Exception as e:
+                        logger.error(f"Error adding student to class {student_id}: {str(e)}")
+
+                # Xóa class_id khỏi class_codes của các student bị loại khỏi lớp
+                students_to_remove = set(old_student_ids) - set(new_student_ids)
+                for student_id in students_to_remove:
+                    try:
+                        student = Student.objects.get(id=student_id)
+                        if class_obj.id in student.class_codes:
+                            student.class_codes.remove(class_obj.id)
                             student.save()
-                            logger.info(f"Added class {class_obj.class_code} to student {student.student_id}")
-                except Exception as e:
-                    logger.error(f"Error adding student to class {student_id}: {str(e)}")
+                            logger.info(f"Removed class {class_obj.class_code} from student {student.student_id}")
+                    except Exception as e:
+                        logger.error(f"Error removing class from student {student_id}: {str(e)}")
+
+                # Gán mới hoàn toàn danh sách student_ids và cập nhật student_count
+                class_obj.student_ids = new_student_ids
+                class_obj.student_count = len(new_student_ids)
 
             # Cập nhật thông tin class
             if 'class_name' in request.data:
                 class_obj.class_name = request.data['class_name']
-            if 'student_ids' in request.data:
-                # Giữ nguyên các student_ids cũ và thêm các student_ids mới
-                class_obj.student_ids = list(set(old_student_ids) | set(new_student_ids))
-                class_obj.student_count = len(class_obj.student_ids)
-            
+                # Cập nhật lại class_codes của sinh viên trong lớp này
+                for student_id in class_obj.student_ids:
+                    student = Student.objects.get(id=student_id)
+                    if class_obj.id in student.class_codes:
+                        student.save()  # Lưu lại để cập nhật thông tin lớp học
+
             class_obj.save()
             logger.info(f"Updated class {class_obj.class_code}")
 
@@ -295,7 +319,7 @@ class ClassDetailView(APIView):
             response_data = serializer.data
             
             # Thêm thông tin về các student_id không hợp lệ nếu có
-            if invalid_student_ids:
+            if 'student_ids' in request.data and invalid_student_ids:
                 response_data['invalid_student_ids'] = invalid_student_ids
                 response_data['message'] = f"Added {len(students_to_add)} new students. {len(invalid_student_ids)} invalid student IDs were ignored."
             
@@ -322,6 +346,19 @@ class ClassDetailView(APIView):
                     {"error": "Only the teacher can delete this class"},
                     status=status.HTTP_403_FORBIDDEN
                 )
+
+            # Bổ sung: Xóa class_id khỏi class_codes của từng student
+            for student_id in class_obj.student_ids:
+                student = Student.objects(id=student_id).first()
+                if student and class_obj.id in student.class_codes:
+                    student.class_codes.remove(class_obj.id)
+                    student.save()
+
+            # for exam_id in class_obj.exam_ids:
+            #     exam = Exam.objects(id = exam_id).first()
+            #     if exam and class_obj.id in exam.class_codes:
+            #         exam.class_codes.remove(class_obj.id)
+            #         exam.save()
 
             class_obj.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
