@@ -111,15 +111,50 @@ class GenerateAnswerKeyView(APIView):
     def _process_answer_bank(self, file):
         text_stream = io.StringIO(file.read().decode('utf-8'))
         questions = []
-        for index, row in enumerate(csv.reader(text_stream), start=1):
-            answer = row[0].strip().upper()
-            if answer not in ['A', 'B', 'C', 'D', 'E']:
-                raise ValidationError(f"Invalid answer at line {index}: {answer}")
+        reader = csv.reader(text_stream)
+        
+        # Check if first row is header
+        first_row = next(reader, None)
+        if first_row and len(first_row) > 1:
+            # 2+ columns format with header
+            start_index = 1
+            for index, row in enumerate(reader, start=2):
+                if not row or len(row) < 2:
+                    continue
+                answer = row[1].strip().upper()  # Lấy cột thứ 2 (đáp án)
+                # Remove BOM character if present
+                answer = answer.replace('\ufeff', '')
+                if answer not in ['A', 'B', 'C', 'D', 'E']:
+                    raise ValidationError(f"Invalid answer at line {index}: {answer}")
+                
+                questions.append({
+                    'question_code': row[0].strip(),  # Lấy cột đầu (số câu hỏi)
+                    'answer': answer
+                })
+        else:
+            # 1 column format (original)
+            if first_row:
+                answer = first_row[0].strip().upper()
+                answer = answer.replace('\ufeff', '')
+                if answer in ['A', 'B', 'C', 'D', 'E']:
+                    questions.append({
+                        'question_code': '1',
+                        'answer': answer
+                    })
             
-            questions.append({
-                'question_code': str(index),
-                'answer': answer
-            })
+            for index, row in enumerate(reader, start=2):
+                if not row or not row[0].strip():
+                    continue
+                answer = row[0].strip().upper()
+                answer = answer.replace('\ufeff', '')
+                if answer not in ['A', 'B', 'C', 'D', 'E']:
+                    raise ValidationError(f"Invalid answer at line {index}: {answer}")
+                
+                questions.append({
+                    'question_code': str(index),
+                    'answer': answer
+                })
+        
         return questions
 
     def _generate_versions(self, answer_bank, num_questions, num_versions, num_exam_id):

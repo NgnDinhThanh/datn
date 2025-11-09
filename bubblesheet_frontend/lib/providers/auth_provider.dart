@@ -16,21 +16,28 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> _loadUser() async {
+    print('🔍 AuthProvider: Loading user from SharedPreferences...');
     final prefs = await SharedPreferences.getInstance();
     _currentUser = prefs.getString('currentUser');
     _token = prefs.getString('token');
+    print('🔍 AuthProvider: currentUser = $_currentUser');
+    print('🔍 AuthProvider: token = ${_token != null ? "EXISTS" : "NULL"}');
     ApiService.setToken(_token);
     _isLoading = false;
+    print('🔍 AuthProvider: isLoading = false, notifying listeners');
     notifyListeners();
   }
 
   Future<void> setCurrentUser(String user, String token) async {
+    print('🔍 AuthProvider: Setting current user = $user');
+    print('🔍 AuthProvider: Setting token = ${token != null ? "EXISTS" : "NULL"}');
     _currentUser = user;
     _token = token;
     ApiService.setToken(token);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('currentUser', user);
     await prefs.setString('token', token);
+    print('🔍 AuthProvider: User saved to SharedPreferences, notifying listeners');
     notifyListeners();
   }
 

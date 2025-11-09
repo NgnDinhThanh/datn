@@ -1,12 +1,15 @@
-import 'dart:html' as html;
+// import 'dart:html' as html; // Web-only import
 import 'dart:typed_data';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
+import 'package:file_picker/file_picker.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/student_provider.dart';
 import '../../providers/class_provider.dart';
+import '../../services/api_service.dart';
 import 'package:go_router/go_router.dart';
 
 class StudentImportScreen extends StatefulWidget {
@@ -28,24 +31,41 @@ class _StudentImportScreenState extends State<StudentImportScreen> {
   String? _selectedClassId;
   String? _result;
   bool _isUploading = false;
-  html.File? _pendingFile;
+  // html.File? _pendingFile; // Web-only
 
-  void _pickFile() {
-    final uploadInput = html.FileUploadInputElement()..accept = '.csv';
-    uploadInput.click();
-    uploadInput.onChange.listen((e) {
-      final file = uploadInput.files?.first;
-      if (file != null) {
+  void _pickFile() async{
+    // Web-only file picker logic
+    if (!kIsWeb) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('File import functionality is only available on web')),
+      );
+      return;
+    }
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['csv', 'txt']
+      );
+
+      if (result != null && result.files.single.bytes != null) {
         setState(() {
-          _fileName = file.name;
-          _fileBytes = null;
-          _csvData = [];
-          _headers = [];
+          _fileBytes = result.files.single.bytes;
+          _fileName = result.files.single.name;
         });
-        // Lưu file để đọc sau khi nhấn Upload
-        _pendingFile = file;
+        final content = utf8.decode(_fileBytes!);
+        _parseCsv(content);
+
+        if (_csvData.isNotEmpty) {
+          setState(() {
+            _step = 1;
+          });
+        }
       }
-    });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error picking file: $e")),
+      );
+    }
   }
 
   void _parseCsv(String content) {
@@ -77,7 +97,7 @@ class _StudentImportScreenState extends State<StudentImportScreen> {
       });
     }
     final token = Provider.of<AuthProvider>(context, listen: false).token;
-    var request = http.MultipartRequest('POST', Uri.parse('http://127.0.0.1:8000/api/students/import/'));
+    var request = http.MultipartRequest('POST', Uri.parse('${ApiService.baseUrl}/students/import/'));
     request.headers['Authorization'] = 'Bearer $token';
     request.fields['has_header'] = 'false';
     request.fields['students'] = jsonEncode(students);
@@ -94,16 +114,33 @@ class _StudentImportScreenState extends State<StudentImportScreen> {
   }
 
   Future<void> _handleUpload() async {
-    if (_pendingFile == null) return;
-    final reader = html.FileReader();
-    reader.readAsText(_pendingFile!);
-    reader.onLoadEnd.listen((event) {
+    // Web-only upload logic
+    if (!kIsWeb) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("File upload functionality is only available on web"))
+      );
+      return;
+    }
+
+    if (_fileBytes == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please select a file first")),
+      );
+      return;
+    }
+
+    final content = utf8.decode(_fileBytes!);
+    _parseCsv(content);
+
+    if (_csvData.isNotEmpty) {
       setState(() {
-        _fileBytes = null; // Không dùng nữa
-        _parseCsv(reader.result as String);
         _step = 1;
       });
-    });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('File is empty or invalid'))
+      );
+    }
   }
 
   @override
@@ -256,7 +293,17 @@ class _StudentImportScreenState extends State<StudentImportScreen> {
 
     final successCount = resultMap?['success_count'] ?? 0;
     final errorCount = resultMap?['error_count'] ?? 0;
-    final errors = (resultMap?['errors'] as List?)?.cast<String>() ?? [];
+    
+    // Parse errors đúng cấu trúc (List<Map> từ backend)
+    final errorsList = (resultMap?['errors'] as List?) ?? [];
+    final errors = errorsList.map((errorMap) {
+      if (errorMap is Map<String, dynamic>) {
+        final row = errorMap['row'] ?? '?';
+        final error = errorMap['error'] ?? 'Unknown error';
+        return 'Row $row: $error';
+      }
+      return errorMap.toString();
+    }).toList();
 
     void goToStudents() {
       context.go('/students');

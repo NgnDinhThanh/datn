@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import '../models/answer_sheet_model.dart';
 import 'api_service.dart';
+import 'auth_helper.dart';
 
 class AnswerSheetService {
   static Future<List<AnswerSheet>> getAnswerSheets(String? token) async {
@@ -18,6 +19,8 @@ class AnswerSheetService {
     
     print('Response status code: ${response.statusCode}');
     print('Response body: ${response.body}');
+    
+    checkAuthError(response.statusCode, response.body);
     
     if (response.statusCode == 200) {
       final body = json.decode(response.body);

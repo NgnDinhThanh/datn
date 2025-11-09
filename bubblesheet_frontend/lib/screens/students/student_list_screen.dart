@@ -2,12 +2,13 @@ import 'package:bubblesheet_frontend/providers/auth_provider.dart';
 import 'package:bubblesheet_frontend/providers/student_provider.dart';
 import 'package:bubblesheet_frontend/providers/class_provider.dart';
 import 'package:bubblesheet_frontend/models/class_model.dart';
+import 'package:bubblesheet_frontend/services/api_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
-import 'dart:html' as html;
+import 'package:universal_html/html.dart' as html;
 
 class StudentListScreen extends StatefulWidget {
   const StudentListScreen({super.key});
@@ -81,25 +82,48 @@ class _StudentListScreenState extends State<StudentListScreen> {
   }
 
   Future<void> exportStudents(String type) async {
-    final token = Provider.of<AuthProvider>(context, listen: false).token;
-    final url = type == 'csv'
-        ? 'http://127.0.0.1:8000/api/students/export/csv/'
-        : 'http://127.0.0.1:8000/api/students/export/excel/';
-    final response = await http.get(Uri.parse(url), headers: {
-      'Authorization': 'Bearer $token',
-    });
-    if (response.statusCode == 200) {
-      final content = response.bodyBytes;
-      final blob = html.Blob([content]);
-      final url2 = html.Url.createObjectUrlFromBlob(blob);
-      final anchor = html.AnchorElement(href: url2)
-        ..setAttribute('download', type == 'csv' ? 'students.csv' : 'students.xlsx')
-        ..click();
-      html.Url.revokeObjectUrl(url2);
-    } else {
-      // Show error (có thể dùng snackbar)
+    if (!kIsWeb) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Export failed: ${response.statusCode}')),
+        const SnackBar(content: Text('Export functionality is only available on web')),
+      );
+      return;
+    }
+
+    try {
+      final token = Provider.of<AuthProvider>(context, listen: false).token;
+      final url = type == 'csv'
+          ? '${ApiService.baseUrl}/students/export/csv/'
+          : '${ApiService.baseUrl}/students/export/excel/';
+      
+      final response = await http.get(Uri.parse(url), headers: {
+        'Authorization': 'Bearer $token',
+      });
+
+      if (response.statusCode == 200) {
+        // Create blob from response bytes
+        final bytes = response.bodyBytes;
+        final blob = html.Blob([bytes]);
+        final blobUrl = html.Url.createObjectUrlFromBlob(blob);
+        
+        // Create anchor element and trigger download
+        final anchor = html.AnchorElement(href: blobUrl)
+          ..setAttribute('download', type == 'csv' ? 'students.csv' : 'students.xlsx')
+          ..click();
+        
+        // Clean up
+        html.Url.revokeObjectUrl(blobUrl);
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Export ${type.toUpperCase()} completed successfully')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Export failed: ${response.statusCode}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Export error: $e')),
       );
     }
   }

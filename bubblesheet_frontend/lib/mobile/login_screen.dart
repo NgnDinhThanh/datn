@@ -26,17 +26,27 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _login() async {
+    print('🔍 LoginScreen: Starting login process...');
+    
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      print('🔍 LoginScreen: Empty fields detected');
       setState(() { _error = 'Please fill in all fields'; });
       return;
     }
 
     setState(() { _isLoading = true; _error = null; });
+    print('🔍 LoginScreen: Calling ApiService.login...');
+    
     try {
       final res = await ApiService.login(_emailController.text.trim(), _passwordController.text);
+      print('🔍 LoginScreen: API response = $res');
+      
       if (res['statusCode'] == 200 && res['body']['token'] != null) {
+        print('🔍 LoginScreen: Login successful, setting user...');
         await Provider.of<AuthProvider>(context, listen: false)
             .setCurrentUser(res['body']['user'].toString(), res['body']['token']);
+        print('🔍 LoginScreen: User set, navigating to MainScreen...');
+        
         if (mounted) {
           Navigator.pushReplacement(
             context,
@@ -44,9 +54,11 @@ class _LoginScreenState extends State<LoginScreen> {
           );
         }
       } else {
+        print('🔍 LoginScreen: Login failed - ${res['body']['error']}');
         setState(() { _error = res['body']['error']?.toString() ?? 'Login failed'; });
       }
     } catch (e) {
+      print('🔍 LoginScreen: Exception during login: $e');
       setState(() { _error = e.toString(); });
     } finally {
       setState(() { _isLoading = false; });
@@ -65,75 +77,101 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top,
-            ),
-            child: IntrinsicHeight(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Text(
-                    'Welcome Back!',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(height: MediaQuery.of(context).size.height * 0.1),
+                
+                // Title
+                const Text(
+                  'Welcome Back!',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(height: 32),
-                  TextField(
-                    controller: _emailController,
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      border: OutlineInputBorder(),
-                    ),
-                    keyboardType: TextInputType.emailAddress,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 30),
+                
+                // Email Field
+                TextField(
+                  controller: _emailController,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _passwordController,
-                    decoration: const InputDecoration(
-                      labelText: 'Password',
-                      border: OutlineInputBorder(),
-                    ),
-                    obscureText: true,
+                  keyboardType: TextInputType.emailAddress,
+                ),
+                const SizedBox(height: 12),
+                
+                // Password Field
+                TextField(
+                  controller: _passwordController,
+                  decoration: const InputDecoration(
+                    labelText: 'Password',
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   ),
-                  const SizedBox(height: 24),
-                  if (_error != null) ...[
-                    Text(
+                  obscureText: true,
+                ),
+                const SizedBox(height: 16),
+                
+                // Error Message
+                if (_error != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.red.shade200),
+                    ),
+                    child: Text(
                       _error!,
-                      style: const TextStyle(color: Colors.red),
+                      style: TextStyle(color: Colors.red.shade700, fontSize: 12),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 12),
-                  ],
-                  ElevatedButton(
-                    onPressed: _isLoading ? null : _login,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Login'),
                   ),
-                  const SizedBox(height: 16),
-                  TextButton(
-                    onPressed: _navigateToRegister,
-                    child: const Text('Don\'t have an account? Register'),
-                  ),
+                  const SizedBox(height: 12),
                 ],
-              ),
+                
+                // Login Button
+                ElevatedButton(
+                  onPressed: _isLoading ? null : _login,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Login', style: TextStyle(fontSize: 16)),
+                ),
+                const SizedBox(height: 12),
+                
+                // Register Link
+                TextButton(
+                  onPressed: _navigateToRegister,
+                  child: const Text(
+                    'Don\'t have an account? Register',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                ),
+                
+                SizedBox(height: MediaQuery.of(context).size.height * 0.1),
+              ],
             ),
           ),
         ),
       ),
     );
   }
-} 
+}

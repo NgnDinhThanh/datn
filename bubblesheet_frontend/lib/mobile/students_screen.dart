@@ -56,76 +56,187 @@ class _StudentsScreenState extends State<StudentsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Students'),
-        centerTitle: true,
+        toolbarHeight: 0, // Hide default AppBar
       ),
-      body: Consumer<StudentProvider>(
-        builder: (context, provider, _) {
-          if (provider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (provider.error != null) {
-            return Center(child: Text('Error: \\${provider.error}', style: TextStyle(color: Colors.red)));
-          }
-          final students = _filterAndSort(provider.students);
-          return Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
+      body: Column(
+        children: [
+          // Custom Header
+          Container(
+            padding: const EdgeInsets.only(top: 16, bottom: 16, left: 16, right: 16),
+            decoration: const BoxDecoration(
+              color: Color(0xFF2E7D32), // ZipGrade green
+              borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 8,
+                  offset: Offset(0, 4),
+                ),
+              ],
+            ),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    DropdownButton<String>(
-                      value: _sortKey,
-                      items: _sortOptions.map((e) => DropdownMenuItem(value: e, child: Text('Sort\n$e'))).toList(),
-                      onChanged: (v) => setState(() => _sortKey = v ?? 'Last Name'),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextField(
-                        decoration: const InputDecoration(
-                          labelText: 'Search',
-                          border: OutlineInputBorder(),
-                        ),
-                        onChanged: (v) => setState(() => _search = v),
+                    const Text(
+                      'STUDENTS',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.0,
                       ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Manage students',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.8),
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Search and Sort Row
+                    Row(
+                      children: [
+                        // Sort Dropdown
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFF2E7D32)),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: _sortKey,
+                              items: _sortOptions.map((e) => DropdownMenuItem(
+                                value: e,
+                                child: Text(
+                                  'Sort\n$e',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              )).toList(),
+                              onChanged: (v) => setState(() => _sortKey = v ?? 'Last Name'),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        // Search Field
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFF2E7D32)),
+                            ),
+                            child: TextField(
+                              decoration: const InputDecoration(
+                                hintText: 'Search',
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                              onChanged: (v) => setState(() => _search = v),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
-              if (students.isEmpty)
-                const Expanded(child: Center(child: Text('No students found.')))
-              else
-                Expanded(
-                  child: ListView.separated(
-                    itemCount: students.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
-                    itemBuilder: (context, i) {
-                      final s = students[i];
-                      return ListTile(
-                        title: Text('${s.firstName} ${s.lastName}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text('ID: ${s.studentId}'),
+            ),
+          ),
+          // Content
+          Expanded(
+            child: Consumer<StudentProvider>(
+              builder: (context, provider, _) {
+                if (provider.isLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (provider.error != null) {
+                  return Center(child: Text('Error: ${provider.error}', style: const TextStyle(color: Colors.red)));
+                }
+                final students = _filterAndSort(provider.students);
+                if (students.isEmpty) {
+                  return const Center(child: Text('No students found.'));
+                }
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: students.length,
+                  itemBuilder: (context, i) {
+                    final s = students[i];
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.all(16),
+                        title: Text(
+                          '${s.firstName} ${s.lastName}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 4),
+                            Text(
+                              'ID: ${s.studentId}',
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Classes: ${s.classCodes.join(', ')}',
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ],
+                        ),
+                        trailing: const Icon(
+                          Icons.chevron_right,
+                          color: Color(0xFF2E7D32),
+                        ),
                         onTap: () {
-                          Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => StudentDetailScreen(student: s)));
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => StudentDetailScreen(student: s),
+                            ),
+                          );
                         },
-                      );
-                    },
-                  ),
-                ),
-            ],
-          );
-        },
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          // TODO: Open add student dialog
           showDialog(
             context: context,
-            builder: (_) => StudentFormDialog(),
+            builder: (_) => const StudentFormDialog(),
           );
         },
-        icon: const Icon(Icons.person_add),
-        label: const Text('New Student'),
+        backgroundColor: const Color(0xFF2E7D32),
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text(
+          'NEW STUDENT',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
     );
   }

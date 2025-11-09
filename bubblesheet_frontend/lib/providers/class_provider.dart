@@ -1,7 +1,9 @@
 import 'package:bubblesheet_frontend/providers/auth_provider.dart';
 import 'package:bubblesheet_frontend/services/class_service.dart';
+import 'package:bubblesheet_frontend/services/auth_helper.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/class_model.dart';
 
@@ -20,17 +22,34 @@ class ClassProvider with ChangeNotifier {
     _isLoading = true;
     _error = null;
     notifyListeners();
+    
+    print('🔍 ClassProvider: Starting fetchClasses...');
+    
     try {
       final token = Provider.of<AuthProvider>(context, listen: false).token;
+      print('🔍 ClassProvider: Token present = ${token != null && token.isNotEmpty}');
+      
       _classes = await ClassService.getClasses(token);
+      
+      print('🔍 ClassProvider: Successfully fetched ${_classes.length} classes');
       for (var c in _classes) {
-    print('Provider - Class: ${c.class_name}, exam_ids: ${c.exam_ids}');
-  }
+        print('Provider - Class: ${c.class_name}, exam_ids: ${c.exam_ids}');
+      }
     } catch (e) {
+      print('❌ ClassProvider: Error fetching classes: $e');
+      
+      // Handle token expired - logout and redirect to login
+      if (e is TokenExpiredException) {
+        await handleTokenExpired(context);
+        return; // Don't set error, user will be redirected
+      }
+      
       _error = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+      print('🔍 ClassProvider: fetchClasses completed. isLoading=$_isLoading, error=$_error');
     }
-    _isLoading = false;
-    notifyListeners();
   }
 
   Future<void> addClass(BuildContext context, Map<String, dynamic> classData) async {

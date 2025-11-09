@@ -2,31 +2,31 @@ import 'dart:convert';
 import 'package:bubblesheet_frontend/models/student_model.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'api_service.dart';
+import 'auth_helper.dart';
 
 class StudentService {
-  static final String baseUrl = kIsWeb
-      ? 'http://127.0.0.1:8000/api'
-      : 'http://10.0.2.2:8000/api';
-
   static Future<List<Student>> getStudents(String? token) async {
     final response = await http.get(
-      Uri.parse('$baseUrl/students/'),
+      Uri.parse('${ApiService.baseUrl}/students/'),
       headers: {'Authorization': 'Bearer $token'},
     );
+    checkAuthError(response.statusCode, response.body);
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
       return data.map((json) => Student.fromJson(json)).toList();
     } else {
-      throw Exception('Failed to load students');
+      throw Exception('Failed to load students: Status ${response.statusCode}');
     }
   }
 
   static Future<Map<String, dynamic>> addStudent(Map<String, dynamic> data, String? token) async {
     final response = await http.post(
-      Uri.parse('$baseUrl/students/'),
+      Uri.parse('${ApiService.baseUrl}/students/'),
       headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
       body: jsonEncode(data),
     );
+    checkAuthError(response.statusCode, response.body);
     return _processResponse(response);
   }
 
@@ -42,12 +42,13 @@ class StudentService {
   }
 
   static Future<Map<String, dynamic>> importStudents(String filePath, bool hasHeader, String? token) async {
-    var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/students/import/'));
+    var request = http.MultipartRequest('POST', Uri.parse('${ApiService.baseUrl}/students/import/'));
     request.headers['Authorization'] = 'Bearer $token';
     request.files.add(await http.MultipartFile.fromPath('file', filePath));
     request.fields['has_header'] = hasHeader ? 'true' : 'false';
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(streamedResponse);
+    checkAuthError(response.statusCode, response.body);
     final Map<String, dynamic> result = {};
     result['statusCode'] = response.statusCode;
     try {
@@ -60,35 +61,38 @@ class StudentService {
 
   static Future<Student> fetchStudentById(String studentId, String? token) async {
     final response = await http.get(
-      Uri.parse('$baseUrl/students/$studentId/'),
+      Uri.parse('${ApiService.baseUrl}/students/$studentId/'),
       headers: {'Authorization': 'Bearer $token'},
     );
+    checkAuthError(response.statusCode, response.body);
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       return Student.fromJson(data);
     } else {
-      throw Exception('Failed to fetch student');
+      throw Exception('Failed to fetch student: Status ${response.statusCode}');
     }
   }
 
   static Future<void> updateStudent(String studentId, Map<String, dynamic> data, String? token) async {
     final response = await http.put(
-      Uri.parse('$baseUrl/students/$studentId/'),
+      Uri.parse('${ApiService.baseUrl}/students/$studentId/'),
       headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
       body: jsonEncode(data),
     );
+    checkAuthError(response.statusCode, response.body);
     if (response.statusCode != 200) {
-      throw Exception('Failed to update student');
+      throw Exception('Failed to update student: Status ${response.statusCode}');
     }
   }
 
   static Future<void> deleteStudent(String studentId, String? token) async {
     final response = await http.delete(
-      Uri.parse('$baseUrl/students/$studentId/'),
+      Uri.parse('${ApiService.baseUrl}/students/$studentId/'),
       headers: {'Authorization': 'Bearer $token'},
     );
+    checkAuthError(response.statusCode, response.body);
     if (response.statusCode != 204) {
-      throw Exception('Failed to delete student');
+      throw Exception('Failed to delete student: Status ${response.statusCode}');
     }
   }
 } 

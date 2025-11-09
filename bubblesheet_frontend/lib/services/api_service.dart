@@ -11,10 +11,16 @@ import '../mobile/login_screen.dart';
 class ApiService {
   static final String baseUrl = kIsWeb
       ? 'http://127.0.0.1:8000/api'
-      : 'http://10.0.2.2:8000/api';
+      : 'http://192.168.99.108:8000/api';
   
   static String? _token;
   static BuildContext? _context;
+
+  // Debug: Log baseUrl khi app khởi động
+  static void logBaseUrl() {
+    print('🔍 ApiService: baseUrl = $baseUrl');
+    print('🔍 ApiService: kIsWeb = $kIsWeb');
+  }
 
   static void setContext(BuildContext context) {
     _context = context;
@@ -27,11 +33,18 @@ class ApiService {
   // Đăng nhập
   static Future<Map<String, dynamic>> login(String email, String password) async {
     final url = Uri.parse('$baseUrl/users/login/');
+    print('🔍 ApiService: Login URL = $url');
+    print('🔍 ApiService: Login data = {email: $email, password: [HIDDEN]}');
+    
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'email': email, 'password': password}),
     );
+    
+    print('🔍 ApiService: Login response status = ${response.statusCode}');
+    print('🔍 ApiService: Login response body = ${response.body}');
+    
     return _processResponse(response);
   }
 

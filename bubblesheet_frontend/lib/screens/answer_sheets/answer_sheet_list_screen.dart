@@ -1,13 +1,15 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../models/answer_sheet_model.dart';
 import '../../providers/answer_sheet_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/answer_sheet_service.dart';
-import 'dart:html' as html;
+import 'package:universal_html/html.dart' as html;
 import 'package:intl/intl.dart';
 
 class AnswerSheetListScreen extends StatefulWidget {
@@ -26,6 +28,44 @@ class _AnswerSheetListScreenState extends State<AnswerSheetListScreen> {
   bool _sortAsc = true;
   Timer? _debounce;
   List<AnswerSheet> _filteredSheets = [];
+
+  // Helper function to sanitize filename
+  String _sanitizeFilename(String name) {
+    // Replace invalid characters with underscore
+    return name.replaceAll(RegExp(r'[^\w\s-]'), '_').trim();
+  }
+
+  // Helper function to download file on web
+  Future<void> _downloadFile(Uint8List bytes, String filename) async {
+    if (!kIsWeb) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Download functionality is only available on web')),
+      );
+      return;
+    }
+
+    try {
+      // Create blob from response bytes
+      final blob = html.Blob([bytes]);
+      final blobUrl = html.Url.createObjectUrlFromBlob(blob);
+      
+      // Create anchor element and trigger download
+      final anchor = html.AnchorElement(href: blobUrl)
+        ..setAttribute('download', filename)
+        ..click();
+      
+      // Clean up
+      html.Url.revokeObjectUrl(blobUrl);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Download started: $filename')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Download failed: $e')),
+      );
+    }
+  }
 
   final List<int> _pageSizeOptions = [10, 25, 50, 100];
   final TextEditingController _searchController = TextEditingController();
@@ -525,15 +565,8 @@ class _AnswerSheetListScreenState extends State<AnswerSheetListScreen> {
                                         final token = Provider.of<AuthProvider>(context, listen: false).token;
                                         try {
                                           final bytes = await AnswerSheetService.downloadAnswerSheetPdf(sheetItem.id, token);
-                                          final blob = html.Blob([bytes], 'application/pdf');
-                                          final url = html.Url.createObjectUrlFromBlob(blob);
-                                          final anchor = html.AnchorElement(href: url)
-                                            ..setAttribute('download', '${sheetItem.name}.pdf')
-                                            ..click();
-                                          html.Url.revokeObjectUrl(url);
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(content: Text('PDF downloaded!')),
-                                          );
+                                          final filename = '${_sanitizeFilename(sheetItem.name)}.pdf';
+                                          await _downloadFile(bytes, filename);
                                         } catch (e) {
                                           ScaffoldMessenger.of(context).showSnackBar(
                                             SnackBar(content: Text('Download failed: $e')),
@@ -555,15 +588,8 @@ class _AnswerSheetListScreenState extends State<AnswerSheetListScreen> {
                                         final token = Provider.of<AuthProvider>(context, listen: false).token;
                                         try {
                                           final bytes = await AnswerSheetService.downloadAnswerSheetPng(sheetItem.id, token);
-                                          final blob = html.Blob([bytes], 'image/png');
-                                          final url = html.Url.createObjectUrlFromBlob(blob);
-                                          final anchor = html.AnchorElement(href: url)
-                                            ..setAttribute('download', '${sheetItem.name}_preview.png')
-                                            ..click();
-                                          html.Url.revokeObjectUrl(url);
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(content: Text('PNG downloaded!')),
-                                          );
+                                          final filename = '${_sanitizeFilename(sheetItem.name)}_preview.png';
+                                          await _downloadFile(bytes, filename);
                                         } catch (e) {
                                           ScaffoldMessenger.of(context).showSnackBar(
                                             SnackBar(content: Text('Download failed: $e')),

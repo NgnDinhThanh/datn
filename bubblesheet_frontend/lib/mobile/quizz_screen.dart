@@ -65,86 +65,203 @@ class _QuizzesScreenState extends State<QuizzesScreen> {
     };
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Quizzes'),
-        centerTitle: true,
+        toolbarHeight: 0, // Hide default AppBar
       ),
-      body: Consumer<ExamProvider>(
-        builder: (context, provider, _) {
-          if (provider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (provider.error != null) {
-            return Center(child: Text('Error: \\${provider.error}', style: TextStyle(color: Colors.red)));
-          }
-          final exams = _filterAndSort(provider.exams);
-          return Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
+      body: Column(
+        children: [
+          // Custom Header
+          Container(
+            padding: const EdgeInsets.only(top: 16, bottom: 16, left: 16, right: 16),
+            decoration: const BoxDecoration(
+              color: Color(0xFF2E7D32), // ZipGrade green
+              borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 8,
+                  offset: Offset(0, 4),
+                ),
+              ],
+            ),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    DropdownButton<String>(
-                      value: _sortKey,
-                      items: _sortOptions.map((e) => DropdownMenuItem(value: e, child: Text('Sort\n$e'))).toList(),
-                      onChanged: (v) => setState(() => _sortKey = v ?? 'Date'),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextField(
-                        decoration: const InputDecoration(
-                          labelText: 'Search',
-                          border: OutlineInputBorder(),
-                        ),
-                        onChanged: (v) => setState(() => _search = v),
+                    const Text(
+                      'QUIZZES',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.0,
                       ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Manage quizzes',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.8),
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Search and Sort Row
+                    Row(
+                      children: [
+                        // Sort Dropdown
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFF2E7D32)),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: _sortKey,
+                              items: _sortOptions.map((e) => DropdownMenuItem(
+                                value: e,
+                                child: Text(
+                                  'Sort\n$e',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              )).toList(),
+                              onChanged: (v) => setState(() => _sortKey = v ?? 'Date'),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        // Search Field
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFF2E7D32)),
+                            ),
+                            child: TextField(
+                              decoration: const InputDecoration(
+                                hintText: 'Search',
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                              onChanged: (v) => setState(() => _search = v),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
-              if (exams.isEmpty)
-                const Expanded(child: Center(child: Text('No quizzes found.')))
-              else
-                Expanded(
-                  child: ListView.separated(
-                    itemCount: exams.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
-                    itemBuilder: (context, i) {
-                      final s = exams[i];
-                      return Card(
-                        margin: const EdgeInsets.symmetric(vertical: 8),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.all(16),
-                          title: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                  child: Text('${s.name}', style: const TextStyle(fontWeight: FontWeight.bold))),
-                              Text('Papers: ${s.papers?.length ?? 0}', style: TextStyle(color: Colors.grey[600], fontSize: 14)),
-                            ],
-                          ),
-                          subtitle: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Text(s.class_codes
-                                    .map((code) => classCodeToName[code] ?? code)
-                                    .join(', '),),
+            ),
+          ),
+          // Content
+          Expanded(
+            child: Consumer<ExamProvider>(
+              builder: (context, provider, _) {
+                if (provider.isLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (provider.error != null) {
+                  return Center(child: Text('Error: ${provider.error}', style: const TextStyle(color: Colors.red)));
+                }
+                final exams = _filterAndSort(provider.exams);
+                if (exams.isEmpty) {
+                  return const Center(child: Text('No quizzes found.'));
+                }
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: exams.length,
+                  itemBuilder: (context, i) {
+                    final s = exams[i];
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.all(16),
+                        title: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                s.name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
                               ),
-                              Text(s.date),
-                            ],
-                          ),
-                          onTap: () {
-                            Navigator.push(context,
-                                MaterialPageRoute(builder: (_) => QuizDetailScreen(quiz: s)));
-                          },
+                            ),
+                            Text(
+                              'Papers: ${s.papers?.length ?? 0}',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
                         ),
-                      );
-                    },
-                  ),
-                ),
-            ],
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 4),
+                            Text(
+                              s.class_codes
+                                  .map((code) => classCodeToName[code] ?? code)
+                                  .join(', '),
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              s.date,
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ],
+                        ),
+                        trailing: const Icon(
+                          Icons.chevron_right,
+                          color: Color(0xFF2E7D32),
+                        ),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => QuizDetailScreen(quiz: s),
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          showDialog(
+            context: context,
+            builder: (_) => const QuizFormDialog(),
           );
         },
+        backgroundColor: const Color(0xFF2E7D32),
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text(
+          'NEW QUIZ',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
     );
   }
